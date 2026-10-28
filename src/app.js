@@ -329,7 +329,7 @@ function checkRow(t,x,col,doneF,formAct,ownerF,extra){
   return `<div class="item${on?' on':''}">
     <button class="chk" data-act="toggle" data-col="${col}" data-f="${doneF}" data-id="${x.id}" aria-label="${on?'取消勾選':'勾選'}" ${canT(t)?'':'disabled'}>${ico('check')}</button>
     <button class="txt" data-act="${formAct}" data-id="${x.id}" ${canT(t)?'':'disabled'}><span class="nm">${esc(x.name)}${extra||''}</span>${on&&x.doneBy?`<span class="by">${esc(nameOf(x.doneBy))} 已勾選</span>`:''}</button>
-    <span class="side">${x[ownerF]?who(x[ownerF]):'<span class="by">未分配</span>'}</span></div>`;
+    <span class="side">${canT(t)?`<button class="who-btn" data-act="reassign" data-col="${col}" data-f="${ownerF}" data-id="${x.id}">${x[ownerF]?who(x[ownerF]):'<span class="pick">指定</span>'}</button>`:(x[ownerF]?who(x[ownerF]):'<span class="by">未分配</span>')}</span></div>`;
 }
 const swipeRow=(t,kind,x,html)=>swipe(kind,x.id,html,canT(t));
 const PERSONAL_DEFAULT=new Set(['帳篷','地墊','營柱','營釘','睡袋','床墊','枕頭','毯子','小地墊','露營椅','水杯','行動電源','相機','平板','Switch']);
@@ -352,7 +352,7 @@ function pShared(t){
   const row=x=>swipeRow(t,'gear',x,`<div class="item${x.done?' on':''}">
     <button class="chk" data-act="toggle" data-col="gear" data-f="done" data-id="${x.id}" aria-label="${x.done?'取消已裝好':'標記已裝好'}" ${canT(t)&&x.assignee?'':'disabled'}>${ico('check')}</button>
     <button class="txt" data-act="gear-form" data-id="${x.id}" ${canT(t)?'':'disabled'}><span class="nm">${esc(x.name)}</span>${x.done?`<span class="by">已裝好</span>`:''}</button>
-    <span class="side">${x.assignee?who(x.assignee):canT(t)?`<button class="claim" data-act="claim" data-id="${x.id}">我來帶</button>`:'<span class="by">還沒人帶</span>'}</span></div>`);
+    <span class="side">${x.assignee?(canT(t)?`<button class="who-btn" data-act="reassign" data-col="gear" data-f="assignee" data-id="${x.id}">${who(x.assignee)}</button>`:who(x.assignee)):canT(t)?`<button class="claim" data-act="claim" data-id="${x.id}">我來帶</button>`:'<span class="by">還沒人帶</span>'}</span></div>`);
   return `<section class="block">
     <div class="block-head"><h3>公用裝備</h3><span class="hint">${g.length?(unclaimed?`${unclaimed} 項還沒人帶`:'每項都有人帶了'):''}</span><span class="grow"></span>
     ${canT(t)?`<button class="btn-text" data-act="import-kit">帶入我的裝備</button><button class="btn small primary" data-act="gear-form">${ico('plus')}新增</button>`:''}</div>
@@ -451,6 +451,14 @@ function mealForm(t,item,date){
   ['#ing-in','#ing-qty'].forEach(s=>$(s).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();addIng();$('#ing-in').focus()}}));
   $('#dish-box').addEventListener('click',e=>{const b=e.target.closest('[data-di]');if(b){dishes.splice(+b.dataset.di,1);drawDish()}});
   $('#ing-box').addEventListener('click',e=>{const b=e.target.closest('[data-ii]');if(b){ings.splice(+b.dataset.ii,1);drawIng()}});
+}
+function reassignSheet(t,col,f,item){
+  const cur=item[f]||'',keys=[...new Set([...membersOf(t),...(cur?[cur]:[])])];
+  const title=col==='gear'?`誰帶「${item.name}」？`:`誰去買「${item.name}」？`;
+  sheet({title,cancel:'取消',body:`<div class="pick-people">${keys.map(k=>`<button type="button" class="pick-person${k===cur?' on':''}" data-k="${esc(k)}">${av(k)}<span>${esc(nameOf(k))}${k===S.uid?'（我）':''}</span>${k.startsWith('g:')?'<em class="vtag">虛擬</em>':''}${k===cur?ico('check'):''}</button>`).join('')}
+    <button type="button" class="pick-person${!cur?' on':''}" data-k=""><span class="av" style="background:var(--line-2)">?</span><span>${col==='gear'?'還沒人帶':'未分配'}</span>${!cur?ico('check'):''}</button></div>`});
+  $('.pick-people').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;closeModal();
+    if(k===cur)return;item[f]=k;render();W(()=>D(`trips/${t.id}/${col}/${item.id}`).update({[f]:k}));toast(k?`改成 ${nameOf(k)}`:'已改成未分配')});
 }
 function tripDays(t){if(!t.startDate)return[];const n=Math.min(nights(t),13);return Array.from({length:n+1},(_,i)=>addDays(t.startDate,i))}
 function pPlan(t){
@@ -1045,6 +1053,7 @@ document.addEventListener('click',e=>{
       const on=!it[f];it[f]=on;it.doneBy=on?S.uid:'';render();
       W(()=>D(`trips/${t.id}/${col}/${id}`).update({[f]:on,doneBy:on?S.uid:''})).catch(()=>{it[f]=!on;render()});break}
     case'gear-form':if(needT())gearForm(t,id&&(S.sub.gear||[]).find(x=>x.id===id));break;
+    case'reassign':{if(!needT())break;const it=(S.sub[el.dataset.col]||[]).find(x=>x.id===id);if(it)reassignSheet(t,el.dataset.col,el.dataset.f,it);break}
     case'meal-form':if(needT())mealForm(t,id&&(S.sub.meals||[]).find(x=>x.id===id),el.dataset.date);break;
     case'shop-form':if(needT())shopForm(t,id&&(S.sub.shopping||[]).find(x=>x.id===id));break;
     case'exp-form':if(needT())expForm(t,id&&(S.sub.expenses||[]).find(x=>x.id===id));break;
