@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>露營日誌</title>
+    <meta name="description" content="和朋友一起規劃露營：分配裝備、列購物清單、分帳，回來後留下照片和心得。" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="露營日誌" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2972/2972185.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" />
+    <script src="./firebase-config.js"></script>
+  </head>
+  <body>
+    <div class="mesh" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="app"><main id="main"></main></div>
+    <nav class="tabbar" id="nav" aria-label="主選單" hidden><div class="in"></div></nav>
+    <div id="modal" hidden></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <input type="file" id="photo-input" accept="image/*" multiple hidden />
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

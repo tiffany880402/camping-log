@@ -1,0 +1,52 @@
+rules_version = '2';
+// 露營日誌的資料權限。到 Firebase 主控台 → Firestore Database → 規則，整份貼上後按「發布」。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // 名字和頭像：登入的人都看得到，只有本人能改。
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && uid() == userId;
+    }
+
+    // 每個人自己的資料（加入了哪些行程、我的裝備清單）：只有本人能讀寫。
+    match /data/users/{userId}/{docId} {
+      allow read, write: if signedIn() && uid() == userId;
+    }
+
+    match /trips/{tripId} {
+      function isMember() {
+        return signedIn() && exists(/databases/$(database)/documents/trips/$(tripId)/members/$(request.auth.uid));
+      }
+      function isOwner() {
+        return signedIn() && get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
+      }
+
+      // 成員（和建立者）可以讀行程；用房間碼查詢時一次只能查一筆。
+      allow get: if isMember() || (signedIn() && resource.data.ownerId == uid());
+      allow list: if signedIn() && request.query.limit <= 1;
+
+      allow create: if signedIn() && request.resource.data.ownerId == uid();
+      // 成員可以編輯行程，但不能改建立者和房間碼。
+      allow update: if isMember()
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.code == resource.data.code;
+      // 只有建立者可以刪除整個行程。
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+
+      // 加入行程：任何登入的人都可以把「自己」加進成員；退出時刪掉自己。
+      match /members/{memberId} {
+        allow create, update: if signedIn() && memberId == uid()
+          && exists(/databases/$(database)/documents/trips/$(tripId));
+        allow delete: if signedIn() && memberId == uid();
+      }
+
+      // 裝備、行李、購物、分帳、照片：只有成員（和建立者）能讀寫。
+      match /{sub}/{docId} {
+        allow read, write: if isMember() || isOwner();
+      }
+    }
+  }
+}
