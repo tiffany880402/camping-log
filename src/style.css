@@ -158,6 +158,9 @@ svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke
 .kv{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:14px}
 .kv dt{color:var(--ink-3);font-weight:600;font-size:13px}
 .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.kv{align-items:baseline}
+.kv dd .btn-text{display:inline;padding:0;margin-left:8px;font-size:inherit}
+.kv dd .btn-text svg{vertical-align:-.15em;margin-right:3px}
 .tags{display:flex;flex-wrap:wrap;gap:6px}
 .tag{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--ink-2)}
 .tag.good{background:var(--soft-2);color:var(--moss-d)}
@@ -367,6 +370,10 @@ textarea{min-height:110px;resize:vertical;line-height:1.6}
 .swipe.open .swipe-row{transform:translateX(-88px)}
 .kit-item{width:100%;text-align:left}
 .vtag{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.06em;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:0 4px;margin-left:2px;flex:none}
+.warn{display:grid;gap:8px;padding:14px;border-radius:20px;background:var(--amber-soft);border:1px solid #F1E0C4}
+.warn>b{font-size:14px;font-weight:800;color:var(--amber)}
+.warn>span{font-size:12px;color:var(--ink-2)}
+.warn .item{width:100%;text-align:left;box-shadow:none}
 .money-people{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .money-people .people{flex:1;min-width:0}
 .legacy-link{display:flex;justify-content:center;margin-top:28px}

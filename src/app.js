@@ -408,11 +408,17 @@ function pPlan(t){
   };
   return `<div class="panel">${keys.length?keys.map(block).join(''):`<div class="empty">先在行程設定填好出發和回程日期，就能按天排行程。${canT(t)?`<br><br><button class="btn ghost" data-act="plan-form">直接新增一項</button>`:''}</div>`}</div>`;
 }
+function splitAll(x,members){
+  if(x.splitMode)return x.splitMode==='all';
+  // older records stored a fixed list; it counts as everyone only if it still covers everyone
+  return !(x.split&&x.split.length)||members.every(m=>x.split.includes(m));
+}
+const splitOf=(x,members)=>splitAll(x,members)?members:x.split;
 function settle(members,exps){
   const bal={};members.forEach(m=>bal[m]=0);
   for(const x of exps){
     if(!x.paidBy)continue;
-    const split=(x.split&&x.split.length?x.split:members);if(!split.length)continue;
+    const split=splitOf(x,members);if(!split.length)continue;
     const amt=+x.amount||0,share=amt/split.length;
     bal[x.paidBy]=(bal[x.paidBy]||0)+amt;split.forEach(m=>bal[m]=(bal[m]||0)-share);
   }
@@ -429,14 +435,17 @@ function pMoney(t){
   const total=ex.reduce((a,x)=>a+(+x.amount||0),0);
   const {bal,tx}=settle(members,ex);
   const list=ex.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const noPayer=list.filter(x=>!x.paidBy);
+  const mine=ex.reduce((a,x)=>{const sp=splitOf(x,members);return a+(sp.includes(S.uid)?(+x.amount||0)/sp.length:0)},0);
   return `<div class="panel">
   ${canT(t)?`<div class="money-people"><div class="people">${members.map(who).join('')}</div><button class="btn-text" data-act="guests">${ico('plus')}新增虛擬成員</button></div>`:''}
   ${t.imported&&ex.length?`<p class="seg-hint">這些金額是從舊版匯入的，只留著當紀錄，不會算進統計。</p>`:''}
-  <div class="sum"><div class="card"><span class="label">總花費</span><span class="big">${money(total)}</span></div><div class="card"><span class="label">每人平均</span><span class="big">${members.length?money(total/members.length):'—'}</span></div></div>
+  <div class="sum"><div class="card"><span class="label">總花費</span><span class="big">${money(total)}</span></div><div class="card"><span class="label">我的分攤</span><span class="big">${members.includes(S.uid)?money(mine):'—'}</span></div></div>
+  ${noPayer.length?`<section class="block"><div class="warn"><b>${noPayer.length} 筆還沒填誰先付</b><span>這幾筆暫時不算進結清，點一下補上付款人。</span><div class="list">${noPayer.map(x=>`<button class="item" data-act="exp-form" data-id="${x.id}" ${canT(t)?'':'disabled'}><span class="txt"><span class="nm">${esc(x.name)}</span></span><span class="amt">${money(x.amount)}</span></button>`).join('')}</div></div></section>`:''}
   ${ex.length?`<section class="block"><div class="block-head"><h3>怎麼結清</h3></div><div class="card">${tx.length?tx.map(x=>`<div class="tx">${who(x.from)}<span class="arrow">轉給</span>${who(x.to)}<span class="amt">${money(x.amt)}</span></div>`).join(''):'<p class="notes" style="color:var(--ink-3)">大家都打平了，不用互相轉帳。</p>'}</div></section>
   <section class="block"><div class="block-head"><h3>每個人的狀況</h3></div><div class="card bal">${Object.entries(bal).map(([m,v])=>`<div class="bal-row">${who(m)}<span class="amt ${v>0.5?'pos':v<-0.5?'neg':''}">${v>0.5?'應收 '+money(v):v<-0.5?'應付 '+money(-v):'打平'}</span></div>`).join('')}</div></section>`:''}
   <section class="block"><div class="block-head"><h3>支出明細</h3><span class="grow"></span>${canT(t)?`<button class="btn small primary" data-act="exp-form">${ico('plus')}記一筆</button>`:''}</div>
-    ${list.length?`<div class="list">${list.map(x=>swipeRow(t,'expenses',x,`<div class="item"><button class="txt" data-act="exp-form" data-id="${x.id}" ${canT(t)?'':'disabled'}><span class="nm">${esc(x.name)}</span><span class="by">${x.paidBy?esc(nameOf(x.paidBy))+' 先付':'還沒填誰付'}${x.split&&x.split.length&&x.split.length!==members.length?` · ${x.split.length} 人分`:''}</span></button><span class="amt">${money(x.amount)}</span></div>`)).join('')}</div>`:`<div class="empty">還沒有支出。營地費、食材、油錢記進來，會自動算好誰該轉給誰多少。</div>`}
+    ${list.length?`<div class="list">${list.map(x=>swipeRow(t,'expenses',x,`<div class="item"><button class="txt" data-act="exp-form" data-id="${x.id}" ${canT(t)?'':'disabled'}><span class="nm">${esc(x.name)}</span><span class="by">${x.paidBy?esc(nameOf(x.paidBy))+' 先付':'還沒填誰付'}${splitAll(x,members)?' · 全部均分':` · ${x.split.length} 人分`}</span></button><span class="amt">${money(x.amount)}</span></div>`)).join('')}</div>`:`<div class="empty">還沒有支出。營地費、食材、油錢記進來，會自動算好誰該轉給誰多少。</div>`}
   </section></div>`;
 }
 
@@ -716,20 +725,26 @@ function shopForm(t,item){
 }
 function expForm(t,item){
   const isNew=!item;const members=membersOf(t);
-  item=item||{paidBy:S.uid,split:members};
-  const split=item.split&&item.split.length?item.split:members;
-  sheet({title:isNew?'記一筆支出':'編輯支出',body:`<div class="two">${fld('項目',inp('f-name',item.name,'例如：營地費'))}${fld('金額（元）',inp('f-amt',item.amount,'0','number','inputmode="numeric" min="0" step="1"'))}</div>
+  item=item||{paidBy:S.uid,splitMode:'all'};
+  const all=isNew||splitAll(item,members);
+  const f=sheet({title:isNew?'記一筆支出':'編輯支出',body:`<div class="two">${fld('項目',inp('f-name',item.name,'例如：營地費'))}${fld('金額（元）',inp('f-amt',item.amount,'0','number','inputmode="numeric" min="0" step="1"'))}</div>
     ${fld('誰先付的',personSel('f-who',t,item.paidBy,'還沒決定'))}
-    ${grp('哪些人分攤',chips('split',members,split,false,'',members.map(k=>nameOf(k)+(k===S.uid?'（我）':''))),'預設所有成員平分。')}`,
+    ${grp('怎麼分',chips('mode',['all','some'],[all?'all':'some'],true,'',['全部人均分','只有部分人'])+`<div id="split-box"${all?' hidden':''} style="margin-top:6px">${chips('split',members,all?members:(item.split||[]),false,'',members.map(k=>nameOf(k)+(k===S.uid?'（我）':'')))}</div>`,`<span id="split-hint">${all?'所有成員平分，之後新加入的人也會一起分。':'勾選要一起分這筆的人。'}</span>`)}`,
     danger:isNew?null:{label:'刪除',fn:()=>W(()=>D(`trips/${t.id}/expenses/${item.id}`).delete())},
     onSubmit:async f=>{
       const name=val(f,'f-name'),amount=Math.round(+val(f,'f-amt'));
       if(!name||!(amount>0)){toast('請填項目和金額');return false}
-      const sp=readChips(f,'split');if(!sp.length){toast('至少要有一個人分攤');return false}
-      const data={name,amount,paidBy:val(f,'f-who'),split:sp};
+      let mode=readChips(f,'mode')[0]||'all',sp=[];
+      if(mode==='some'){sp=readChips(f,'split');if(!sp.length){toast('至少要有一個人分攤');return false}if(members.every(m=>sp.includes(m)))mode='all'}
+      const data={name,amount,paidBy:val(f,'f-who'),splitMode:mode,split:mode==='all'?[]:sp};
       if(isNew)await W(()=>D(`trips/${t.id}/expenses/${newId()}`).set({...data,createdAt:Date.now()}));
       else await W(()=>D(`trips/${t.id}/expenses/${item.id}`).update(data));
     }});
+  f.addEventListener('click',e=>{if(!e.target.closest('[data-name="mode"]'))return;setTimeout(()=>{
+    const c=e.target.closest('[data-chip]');if(!readChips(f,'mode').length&&c)c.setAttribute('aria-pressed','true');
+    const some=readChips(f,'mode')[0]==='some';
+    $('#split-box').hidden=!some;$('#split-hint').textContent=some?'勾選要一起分這筆的人。':'所有成員平分，之後新加入的人也會一起分。';
+  },0)});
 }
 function planForm(t,item,date){
   const isNew=!item;item=item||{date:date||t.startDate||''};
