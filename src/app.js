@@ -724,11 +724,11 @@ async function sharedToPack(t,g,remember){
 function bindMove(fn){const b=$('#f-move');if(!b)return;b.addEventListener('click',async()=>{const r=$('#f-remember');const remember=!!(r&&r.checked);b.disabled=true;closeModal();try{await fn(remember)}catch(e){console.warn(e)}})}
 function gearForm(t,item){
   const isNew=!item;item=item||{assignee:S.uid,cat:'其他'};
-  const canMove=!isNew&&(!item.assignee||item.assignee===S.uid);
+  const canMove=!isNew&&(!item.assignee||item.assignee===S.uid),canCopy=!isNew&&!canMove;
   sheet({title:isNew?'新增裝備':'編輯裝備',body:`${fld('裝備名稱',inp('f-name',item.name,'例如：氣化燈'))}
     <div class="two">${fld('誰負責帶',personSel('f-who',t,item.assignee,'未分配'))}${fld('分類',sel('f-cat',GEAR_CATS,item.cat))}</div>
     ${isNew?`<label class="check-row"><input type="checkbox" id="f-tokit"><span>也存到我的裝備清單</span></label>`:''}
-    ${canMove?moveBlock('移到我的行李','只有你自己用的東西才需要移過去，公用清單上會拿掉這一項。',item.name):''}`,
+    ${canMove?moveBlock('移到我的行李','只有你自己用的東西才需要移過去，公用清單上會拿掉這一項。',item.name):''}${canCopy?moveBlock('我也自己帶一份',`${esc(nameOf(item.assignee))} 帶的這一項會留在公用清單，另外在你的行李加一項。`,''):''}`,
     danger:isNew?null:{label:'刪除',fn:()=>W(()=>D(`trips/${t.id}/gear/${item.id}`).delete())},
     onSubmit:async f=>{
       const name=val(f,'f-name');if(!name){toast('請填裝備名稱');return false}
@@ -737,6 +737,7 @@ function gearForm(t,item){
       else await W(()=>D(`trips/${t.id}/gear/${item.id}`).update(data));
     }});
   if(canMove)bindMove(r=>sharedToPack(t,item,r));
+  if(canCopy)bindMove(async()=>{if(!packOf(S.uid).some(i=>i.name===item.name))await savePack(t,[...packOf(S.uid),{id:newId(),name:item.name,cat:item.cat||'其他',done:false,createdAt:Date.now()}]);toast('已加到我的行李')});
 }
 function shopForm(t,item){
   const isNew=!item;item=item||{buyer:S.uid,cat:'食材'};
