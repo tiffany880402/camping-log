@@ -28,18 +28,20 @@ if (configured) {
 /* ---------- auth ---------- */
 export function watchAuth(cb) {
   if (!configured) { cb(null); return () => {}; }
-  getRedirectResult(auth).catch(() => {});
+  getRedirectResult(auth).catch((e) => console.warn('redirect sign-in', e));
   return onAuthStateChanged(auth, cb);
 }
+// Always sign in with a popup. A redirect returns through the Firebase auth domain, which is a
+// different site from github.io; iPhones (especially home-screen apps) block that hand-off and the
+// app keeps showing the sign-in page. Popups are not affected.
 export async function signInGoogle() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if (standalone) return signInWithRedirect(auth, provider);
   try {
     return await signInWithPopup(auth, provider);
   } catch (e) {
-    if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!standalone && e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
       return signInWithRedirect(auth, provider);
     }
     throw e;
