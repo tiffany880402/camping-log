@@ -410,8 +410,8 @@ function pPlan(t){
 }
 function splitAll(x,members){
   if(x.splitMode)return x.splitMode==='all';
-  // older records stored a fixed list; it counts as everyone only if it still covers everyone
-  return !(x.split&&x.split.length)||members.every(m=>x.split.includes(m));
+  // records made before the split choice existed were always meant for everyone
+  return true;
 }
 const splitOf=(x,members)=>splitAll(x,members)?members:x.split;
 function settle(members,exps){
