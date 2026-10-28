@@ -698,11 +698,37 @@ function reviewForm(t){
     }});
   const rate=$('#rate');rate.addEventListener('change',()=>{const v=+(rate.querySelector(':checked')||{}).value||0;rate.querySelectorAll('label').forEach((l,i)=>l.classList.toggle('on',i<v))});
 }
+/* move items between 公用裝備 and 我的行李 */
+ICONS.swap='<path d="M7 7h12l-3-3M17 17H5l3 3"/>';
+const inKit=name=>Array.isArray(S.kit)&&S.kit.some(i=>i.name===name);
+const moveBlock=(label,hint,name)=>`<div class="move-box"><button type="button" class="btn ghost" id="f-move">${ico('swap')}${label}</button><span class="fld-h">${hint}</span>${inKit(name)?`<label class="check-row"><input type="checkbox" id="f-remember" checked><span>以後帶入時也這樣分（更新我的裝備清單）</span></label>`:''}</div>`;
+async function rememberScope(name,scope){
+  if(!Array.isArray(S.kit))return;const hit=S.kit.find(i=>i.name===name);
+  if(hit&&scopeOf(hit)!==scope)await saveKit(S.kit.map(i=>i.name===name?{...i,scope}:i));
+}
+async function packToShared(t,x,remember){
+  const same=(S.sub.gear||[]).filter(g=>g.name===x.name);
+  const free=same.find(g=>!g.assignee),other=same.find(g=>g.assignee&&g.assignee!==S.uid);
+  await savePack(t,packOf(S.uid).filter(i=>i.id!==x.id));
+  if(free)await W(()=>D(`trips/${t.id}/gear/${free.id}`).update({assignee:S.uid,done:!!x.done}));
+  else await W(()=>D(`trips/${t.id}/gear/${newId()}`).set({name:x.name,cat:x.cat||'其他',assignee:S.uid,done:!!x.done,createdAt:Date.now()}));
+  if(remember)await rememberScope(x.name,'shared');
+  toast(other?`已移到公用裝備（${nameOf(other.assignee)} 也有帶這個）`:'已移到公用裝備，算你帶');
+}
+async function sharedToPack(t,g,remember){
+  await W(()=>D(`trips/${t.id}/gear/${g.id}`).delete());
+  if(!packOf(S.uid).some(i=>i.name===g.name))await savePack(t,[...packOf(S.uid),{id:newId(),name:g.name,cat:g.cat||'其他',done:!!g.done,createdAt:Date.now()}]);
+  if(remember)await rememberScope(g.name,'mine');
+  toast('已移到我的行李');
+}
+function bindMove(fn){const b=$('#f-move');if(!b)return;b.addEventListener('click',async()=>{const r=$('#f-remember');const remember=!!(r&&r.checked);b.disabled=true;closeModal();try{await fn(remember)}catch(e){console.warn(e)}})}
 function gearForm(t,item){
   const isNew=!item;item=item||{assignee:S.uid,cat:'其他'};
+  const canMove=!isNew&&(!item.assignee||item.assignee===S.uid);
   sheet({title:isNew?'新增裝備':'編輯裝備',body:`${fld('裝備名稱',inp('f-name',item.name,'例如：氣化燈'))}
     <div class="two">${fld('誰負責帶',personSel('f-who',t,item.assignee,'未分配'))}${fld('分類',sel('f-cat',GEAR_CATS,item.cat))}</div>
-    ${isNew?`<label class="check-row"><input type="checkbox" id="f-tokit"><span>也存到我的裝備清單</span></label>`:''}`,
+    ${isNew?`<label class="check-row"><input type="checkbox" id="f-tokit"><span>也存到我的裝備清單</span></label>`:''}
+    ${canMove?moveBlock('移到我的行李','只有你自己用的東西才需要移過去，公用清單上會拿掉這一項。',item.name):''}`,
     danger:isNew?null:{label:'刪除',fn:()=>W(()=>D(`trips/${t.id}/gear/${item.id}`).delete())},
     onSubmit:async f=>{
       const name=val(f,'f-name');if(!name){toast('請填裝備名稱');return false}
@@ -710,6 +736,7 @@ function gearForm(t,item){
       if(isNew){await W(()=>D(`trips/${t.id}/gear/${newId()}`).set({...data,done:false,createdAt:Date.now()}));if($('#f-tokit').checked)await saveKit([...(S.kit||[]),{id:newId(),name,cat:data.cat}])}
       else await W(()=>D(`trips/${t.id}/gear/${item.id}`).update(data));
     }});
+  if(canMove)bindMove(r=>sharedToPack(t,item,r));
 }
 function shopForm(t,item){
   const isNew=!item;item=item||{buyer:S.uid,cat:'食材'};
@@ -815,10 +842,12 @@ function kitEdit(x){
       await saveKit((S.kit||[]).map(i=>i.id===x.id?{...i,name,cat:val(f,'f-cat'),scope:readChips(f,'scope')[0]||scopeOf(i)}:i))}});
 }
 function packEdit(t,x){
-  sheet({title:'編輯行李',body:`${fld('東西',inp('f-name',x.name))}${fld('分類',sel('f-cat',GEAR_CATS,x.cat||'其他'))}`,
+  sheet({title:'編輯行李',body:`${fld('東西',inp('f-name',x.name))}${fld('分類',sel('f-cat',GEAR_CATS,x.cat||'其他'))}
+    ${moveBlock('移到公用裝備','大家都會用到的東西，移過去後會顯示由你負責帶。',x.name)}`,
     danger:{label:'刪除',confirm:'再按一次確認刪除',fn:()=>savePack(t,packOf(S.uid).filter(i=>i.id!==x.id))},
     onSubmit:async f=>{const name=val(f,'f-name');if(!name){toast('請填名稱');return false}
       await savePack(t,packOf(S.uid).map(i=>i.id===x.id?{...i,name,cat:val(f,'f-cat')}:i))}});
+  bindMove(r=>packToShared(t,x,r));
 }
 /* ---------- import from the old localStorage app ---------- */
 const LEGACY_SAMPLES=new Set(['1|星空森林營地','2|溪畔悠遊營地']);
