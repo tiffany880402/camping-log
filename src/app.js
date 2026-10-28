@@ -152,12 +152,15 @@ window.addEventListener('hashchange',()=>{onRoute();window.scrollTo(0,0)});
 function subTrip(id){
   unsubTrip();S.subTripId=id;S.sub={};
   if(!S.db)return;
-  for(const k of SUBS){
+  for(const k of SUBS)subOne(id,k,0);
+}
+function subOne(id,k,tries){
+  {
     S.unsubs.push(S.db.collection(`trips/${id}/${k}`).onSnapshot(s=>{
       S.sub[k]=s.docs.map(d=>({id:d.id,...d.data()}));
       if(k==='members'){S.tripMembers[id]=S.sub.members.map(m=>m.id);resolveNames(S.tripMembers[id])}
       render();
-    },e=>console.warn(k,e)));
+    },e=>{console.warn(k,e);if(tries<6)setTimeout(()=>{if(S.subTripId===id)subOne(id,k,tries+1)},1000*(tries+1))}));
   }
 }
 function unsubTrip(){S.unsubs.forEach(u=>{try{u()}catch(e){}});S.unsubs=[];S.subTripId=null;S.sub={}}
@@ -621,7 +624,9 @@ async function findByCode(code){
   return s.empty?null:{id:s.docs[0].id,...s.docs[0].data()};
 }
 async function joinTrip(t){
-  await W(()=>D(`trips/${t.id}/members/${S.uid}`).set({joinedAt:Date.now(),role:t.ownerId===S.uid?'owner':'member'}));
+  toast('加入中…',15000);
+  try{await D(`trips/${t.id}/members/${S.uid}`).set({joinedAt:Date.now(),role:t.ownerId===S.uid?'owner':'member'})}
+  catch(e){console.warn(e);toast('加入沒有成功，請確認網路後再試一次',5000);return}
   if(!(S.myIds||[]).includes(t.id))await setMyIds([...(S.myIds||[]),t.id]);
   location.hash='trip-'+t.id;toast(`已加入「${t.name}」`);
 }
