@@ -376,12 +376,42 @@ textarea{min-height:110px;resize:vertical;line-height:1.6}
 .warn .item{width:100%;text-align:left;box-shadow:none}
 .move-box{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
 .move-box .btn{width:100%}
-.meal{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:18px;background:var(--surface);border:1px solid var(--line);min-height:62px}
-.meal-slot{flex:none;width:44px;height:44px;border-radius:14px;background:var(--amber-soft);color:var(--amber);font-size:12px;font-weight:800;display:grid;place-items:center}
-.meal-body{flex:1;min-width:0;display:grid;gap:2px}
-.meal-body b{font-size:14px;font-weight:800;overflow-wrap:anywhere}
-.meal-body small{font-size:11px;color:var(--ink-3);font-weight:600}
-.meal .side{flex:none;max-width:38%;display:flex}
+/* menu in 總覽 */
+.menu-card{display:grid;gap:14px;padding:14px 16px}
+.menu-day{display:grid;gap:4px}
+.menu-day+.menu-day{padding-top:12px;border-top:1px solid var(--line)}
+.menu-day-h{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+.menu-day-h b{font-size:13px;font-weight:900}
+.menu-day-h span{font-size:11px;color:var(--ink-3);font-weight:600}
+.menu-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:6px 0;min-height:40px}
+.slot-pill{flex:none;font-size:11px;font-weight:800;color:var(--amber);background:var(--amber-soft);border-radius:999px;padding:3px 9px}
+.menu-dish{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-dish i{font-style:normal;color:var(--ink-3)}
+.menu-row .av{width:24px;height:24px;font-size:11px}
+/* meal form */
+.addrow{display:flex;gap:8px;align-items:center}
+.addrow input{flex:1;min-width:0}
+.addrow .qty{flex:0 0 5.5em}
+.add-btn{flex:none;width:44px;height:44px;border-radius:14px;background:var(--soft-2);color:var(--moss-d);display:grid;place-items:center}
+.add-btn svg{width:20px;height:20px;stroke-width:2.4}
+.tagbox{display:flex;flex-wrap:wrap;gap:6px}
+.tagbox:empty,.ing-box:empty{display:none}
+.tagx{display:inline-flex;align-items:center;gap:4px;padding:6px 6px 6px 12px;border-radius:999px;background:var(--moss);color:#fff;font-size:13px;font-weight:700}
+.tagx button{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:rgba(255,255,255,.8)}
+.tagx svg{width:13px;height:13px}
+.ing-box{display:grid;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ing{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 14px;font-size:14px;font-weight:600}
+.ing+.ing{border-top:1px solid var(--line)}
+.ing span{flex:1;min-width:0}
+.ing em{font-style:normal;font-size:12px;color:var(--ink-3);font-weight:700}
+.ing button{width:28px;height:28px;display:grid;place-items:center;color:var(--ink-3)}
+.ing svg{width:14px;height:14px}
+.toggle-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--soft)}
+.toggle-row input{width:20px;height:20px;accent-color:var(--moss);flex:none}
+.toggle-row span{display:grid;gap:1px}
+.toggle-row b{font-size:14px;font-weight:700}
+.toggle-row small{font-size:12px;color:var(--ink-3)}
+textarea{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 .money-people{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .money-people .people{flex:1;min-width:0}
 .legacy-link{display:flex;justify-content:center;margin-top:28px}
