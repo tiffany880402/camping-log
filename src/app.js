@@ -80,6 +80,9 @@ const ICONS={
 };
 const ico=n=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
 
+/* ---------- show unexpected errors on screen ---------- */
+window.addEventListener('error',e=>{try{toast('發生錯誤：'+(e.message||e.error||'unknown'),8000)}catch(_){}});
+window.addEventListener('unhandledrejection',e=>{const r=e.reason;if(r&&(r.code==='auth/popup-closed-by-user'||r.code==='auth/cancelled-popup-request'))return;try{toast('發生錯誤：'+((r&&(r.code||r.message))||r||'unknown'),8000)}catch(_){}});
 /* ---------- writes ---------- */
 function W(fn){
   const run=(async()=>{for(let i=0;i<4;i++){try{return await fn()}catch(e){const c=e&&e.code;if((c==='resource-exhausted'||c==='unavailable'||c==='aborted')&&i<3){await sleep(500*(i+1));continue}throw e}}})();
@@ -160,7 +163,7 @@ function subOne(id,k,tries){
       S.sub[k]=s.docs.map(d=>({id:d.id,...d.data()}));
       if(k==='members'){S.tripMembers[id]=S.sub.members.map(m=>m.id);resolveNames(S.tripMembers[id])}
       render();
-    },e=>{console.warn(k,e);if(tries<6)setTimeout(()=>{if(S.subTripId===id)subOne(id,k,tries+1)},1000*(tries+1))}));
+    },e=>{console.warn(k,e);if(tries<6)setTimeout(()=>{if(S.subTripId===id)subOne(id,k,tries+1)},1000*(tries+1));else{S.subErr=S.subErr||{};S.subErr[k]=(e&&(e.code||e.message))||'unknown';render()}}));
   }
 }
 function unsubTrip(){S.unsubs.forEach(u=>{try{u()}catch(e){}});S.unsubs=[];S.subTripId=null;S.sub={}}
@@ -404,7 +407,7 @@ const lines=v=>String(v||'').split(/[\n,，、]+/).map(x=>x.trim()).filter(Boole
 // "牛小排 2盒" -> {name:'牛小排',qty:'2盒'}
 function parseIng(line){const m=line.match(/^(.*?)[\s×xX*]+([\d０-９.]+\s*\S*)$/);return m&&m[1].trim()?{name:m[1].trim(),qty:m[2].trim()}:{name:line,qty:''}}
 function menuBlock(t){
-  const meals=S.sub.meals;if(!meals)return'';
+  const meals=S.sub.meals;if(!meals)return `<section class="block"><div class="menu-sheet"><div class="mn-head"><small>MENU</small><span class="mn-rule"></span></div><p class="mn-empty"><span>${S.subErr&&S.subErr.meals?'菜單讀取失敗（'+esc(S.subErr.meals)+'），請截圖給開發者':'菜單讀取中…'}</span></p></div></section>`;
   const days=tripDays(t),by={};
   for(const m of meals)(by[m.date||'']=by[m.date||'']||[]).push(m);
   const keys=[...days.filter(d=>by[d]),...Object.keys(by).filter(k=>!days.includes(k)).sort()];
@@ -1110,7 +1113,7 @@ document.addEventListener('click',e=>{
     case'pack-toggle':if(needT())savePack(t,packOf(S.uid).map(x=>x.id===id?{...x,done:!x.done}:x));break;
     case'pack-edit':{if(!needT())break;const x=packOf(S.uid).find(i=>i.id===id);if(x)packEdit(t,x);break}
     case'kit-edit':{if(!need())break;const x=(S.kit||[]).find(i=>i.id===id);if(x)kitEdit(x);break}
-    case'login':signInGoogle().catch(err=>{if(err&&err.code!=='auth/popup-closed-by-user'&&err.code!=='auth/cancelled-popup-request')toast('登入沒有成功，請再試一次')});break;
+    case'login':signInGoogle().catch(err=>{if(err&&err.code!=='auth/popup-closed-by-user'&&err.code!=='auth/cancelled-popup-request')toast('登入沒有成功（'+((err&&err.code)||'unknown')+'），請再試一次',8000)});break;
     case'account':accountSheet();break;
     case'legacy-import':if(need())importLegacySheet();break;
     case'swipe-del':if(need())swipeDelete(el.dataset.kind,id);break;
