@@ -366,6 +366,9 @@ textarea{min-height:110px;resize:vertical;line-height:1.6}
 .swipe-row{position:relative;transition:transform .22s ease;touch-action:pan-y;-webkit-user-select:none;user-select:none}
 .swipe.open .swipe-row{transform:translateX(-88px)}
 .kit-item{width:100%;text-align:left}
+.vtag{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.06em;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:0 4px;margin-left:2px;flex:none}
+.money-people{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.money-people .people{flex:1;min-width:0}
 .legacy-link{display:flex;justify-content:center;margin-top:28px}
 .legacy-link .btn-text{color:var(--ink-3);font-weight:600}
 .lg-row span{display:grid;gap:1px}

@@ -50,7 +50,7 @@ function hue(s){let h=0;for(const c of String(s))h=(h*31+c.codePointAt(0))%360;r
 function av(k){const p=!k.startsWith('g:')&&S.names[k];const n=nameOf(k);
   if(p&&p.avatarUrl)return `<span class="av"><img src="${esc(p.avatarUrl)}" alt="" referrerpolicy="no-referrer"></span>`;
   return `<span class="av" style="background:hsl(${hue(k)} 18% 52%)" aria-hidden="true">${esc([...n][0]||'?')}</span>`}
-const who=k=>`<span class="who">${av(k)}<span>${esc(nameOf(k))}${k===S.uid?'（我）':''}</span></span>`;
+const who=k=>`<span class="who">${av(k)}<span>${esc(nameOf(k))}${k===S.uid?'（我）':''}</span>${k.startsWith('g:')?'<em class="vtag">虛擬</em>':''}</span>`;
 async function resolveNames(ids){
   if(!S.db)return;
   const need=[...new Set(ids)].filter(i=>i&&!i.startsWith('g:')&&!(i in S.names));
@@ -276,7 +276,7 @@ function pOverview(t){
   return `<div class="panel">
   ${t.cover&&st==='done'?`<div class="cover"><img src="${esc(t.cover)}" alt=""></div>`:''}
   ${canT(t)&&st!=='done'?`<button class="invite" data-act="invite" style="width:100%;text-align:left"><span class="grow"><small>房間碼</small><span class="code">${esc(t.code)}</span></span><span class="btn small primary">${ico('share')}邀請朋友</span></button>`:''}
-  <section class="block"><div class="block-head"><h3>同行成員</h3><span class="hint">${mem.length} 人</span><span class="grow"></span>${canT(t)?`<button class="btn-text" data-act="guests">${ico('plus')}手動加人</button>`:''}</div>
+  <section class="block"><div class="block-head"><h3>同行成員</h3><span class="hint">${mem.length} 人</span><span class="grow"></span>${canT(t)?`<button class="btn-text" data-act="guests">${ico('plus')}新增虛擬成員</button>`:''}</div>
     <div class="people">${mem.map(who).join('')}</div>
   </section>
   ${st!=='done'?`<section class="block"><div class="block-head"><h3>準備進度</h3></div><div class="card ready">${progress(c,'gear','裝備備妥')}${progress(c,'shopping','採買完成','amber')}</div></section>`:''}
@@ -430,6 +430,7 @@ function pMoney(t){
   const {bal,tx}=settle(members,ex);
   const list=ex.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   return `<div class="panel">
+  ${canT(t)?`<div class="money-people"><div class="people">${members.map(who).join('')}</div><button class="btn-text" data-act="guests">${ico('plus')}新增虛擬成員</button></div>`:''}
   ${t.imported&&ex.length?`<p class="seg-hint">這些金額是從舊版匯入的，只留著當紀錄，不會算進統計。</p>`:''}
   <div class="sum"><div class="card"><span class="label">總花費</span><span class="big">${money(total)}</span></div><div class="card"><span class="label">每人平均</span><span class="big">${members.length?money(total/members.length):'—'}</span></div></div>
   ${ex.length?`<section class="block"><div class="block-head"><h3>怎麼結清</h3></div><div class="card">${tx.length?tx.map(x=>`<div class="tx">${who(x.from)}<span class="arrow">轉給</span>${who(x.to)}<span class="amt">${money(x.amt)}</span></div>`).join(''):'<p class="notes" style="color:var(--ink-3)">大家都打平了，不用互相轉帳。</p>'}</div></section>
@@ -616,12 +617,12 @@ document.addEventListener('click',ev=>{
 });
 function guestsForm(t){
   let list=[...(t.guests||[])];
-  const draw=()=>{$('#g-list').innerHTML=list.length?list.map((g,i)=>`<span class="who">${av('g:'+g)}<span>${esc(g)}</span><button type="button" class="g-del" data-i="${i}" aria-label="移除 ${esc(g)}">${ico('x')}</button></span>`).join(''):'<span class="fld-h">還沒有手動加的人</span>'};
-  sheet({title:'手動加入同行的人',body:`
-    <p class="fld-h" style="margin:0;font-size:13px;line-height:1.7">朋友自己有帳號的話，傳<b>房間碼</b>給他加入就好，不用在這裡加。<br>這裡是給<b>不會自己登入的人</b>，例如小孩、長輩、沒用 App 的朋友。填名字就能分配裝備給他、記帳時一起分攤。</p>
+  const draw=()=>{$('#g-list').innerHTML=list.length?list.map((g,i)=>`<span class="who">${av('g:'+g)}<span>${esc(g)}</span><button type="button" class="g-del" data-i="${i}" aria-label="移除 ${esc(g)}">${ico('x')}</button></span>`).join(''):'<span class="fld-h">還沒有虛擬成員</span>'};
+  sheet({title:'虛擬成員',body:`
+    <p class="fld-h" style="margin:0;font-size:13px;line-height:1.7">虛擬成員不用登入、也看不到這個行程，只是一個名字，但一樣可以<b>分配裝備</b>、<b>一起分帳</b>。適合小孩、長輩，或不想用 App 的朋友。<br>朋友想自己看清單、自己勾的話，就傳<b>房間碼</b>讓他加入。</p>
     ${grp('名字',`<div class="linkrow"><input type="text" id="g-name" placeholder="例如：小寶"><button type="button" class="btn ghost" id="g-add">加入</button></div>`)}
     <div class="people" id="g-list"></div>`,
-    onSubmit:async()=>{const extra=val($('#sheet-form'),'g-name');if(extra&&!list.includes(extra))list.push(extra);await W(()=>D('trips/'+t.id).update({guests:list,updatedAt:Date.now()}));toast('已更新同行成員')}});
+    onSubmit:async()=>{const extra=val($('#sheet-form'),'g-name');if(extra&&!list.includes(extra))list.push(extra);await W(()=>D('trips/'+t.id).update({guests:list,updatedAt:Date.now()}));toast('已更新虛擬成員')}});
   draw();
   const add=()=>{const v=$('#g-name').value.trim();if(v&&!list.includes(v))list.push(v);$('#g-name').value='';draw()};
   $('#g-add').addEventListener('click',add);
