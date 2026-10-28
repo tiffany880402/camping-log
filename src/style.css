@@ -285,7 +285,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.6}
 .seg-hint{margin:0;padding:0 2px;font-size:12px;color:var(--ink-3)}
 .claim{font-size:12px;font-weight:800;color:var(--moss-d);background:var(--soft-2);padding:6px 12px;border-radius:999px;white-space:nowrap}
 .x-btn{border:0;width:32px;height:32px;color:var(--ink-3);background:transparent}
-.pack-row{display:grid;grid-template-columns:minmax(0,7.5em) 1fr auto;gap:12px;align-items:center;font-size:12px}
+.pack-row{display:grid;grid-template-columns:minmax(0,9.5em) 1fr auto;gap:12px;align-items:center;font-size:12px}
 .pack-row .who{background:none;padding-left:0}
 .pack-row .num{color:var(--ink-2);font-weight:700;white-space:nowrap}
 .pick-sec{display:grid;gap:8px}
@@ -376,6 +376,12 @@ textarea{min-height:110px;resize:vertical;line-height:1.6}
 .warn .item{width:100%;text-align:left;box-shadow:none}
 .move-box{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
 .move-box .btn{width:100%}
+.meal{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border-radius:18px;background:var(--surface);border:1px solid var(--line);min-height:62px}
+.meal-slot{flex:none;width:44px;height:44px;border-radius:14px;background:var(--amber-soft);color:var(--amber);font-size:12px;font-weight:800;display:grid;place-items:center}
+.meal-body{flex:1;min-width:0;display:grid;gap:2px}
+.meal-body b{font-size:14px;font-weight:800;overflow-wrap:anywhere}
+.meal-body small{font-size:11px;color:var(--ink-3);font-weight:600}
+.meal .side{flex:none;max-width:38%;display:flex}
 .money-people{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .money-people .people{flex:1;min-width:0}
 .legacy-link{display:flex;justify-content:center;margin-top:28px}

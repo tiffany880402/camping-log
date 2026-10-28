@@ -11,7 +11,7 @@ const CAMPTYPE=['碎石','混和','草皮','棧板'];
 const FACIL=['飲水機','冰箱','插座','沐浴洗髮乳','吹風機'];
 const PROS=['草地平整','衛浴乾淨','熱水充足','景觀超美','路況良好','高度隱私','星空燦爛','清靜悠閒','遮蔭豐富','營主熱情','交通便利','營位寬敞'];
 const CONS=['沒有缺點','人太多','熱水不穩','浴廁少','山路陡','難搭帳','泥濘','很曬','風大','有蟑螂','蒼蠅多','蚊蟲多'];
-const SUBS=['members','gear','packs','shopping','expenses','schedule','photos'];
+const SUBS=['members','gear','packs','meals','shopping','expenses','schedule','photos'];
 const WD='日一二三四五六';
 const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -251,8 +251,8 @@ function vTrip(){
   if(!t)return `<div class="empty-hero"><h2>找不到這個行程</h2><p>可能已經被刪除了。</p><a class="btn ghost" href="#">回到行程列表</a></div>`;
   const st=status(t),sub=S.sub,member=isMember(t);
   const cnt=k=>sub[k]?sub[k].length:'';
-  const tabs=[['overview','總覽'],['gear','裝備',cnt('gear')],['shop','購物',cnt('shopping')],['money','分帳',cnt('expenses')]];
-  const body=S.tab==='gear'?pGear(t):S.tab==='shop'?pShop(t):S.tab==='money'?pMoney(t):pOverview(t);
+  const tabs=[['overview','總覽'],['gear','裝備',cnt('gear')],['menu','菜單',cnt('meals')],['shop','購物',cnt('shopping')],['money','分帳',cnt('expenses')]];
+  const body=S.tab==='gear'?pGear(t):S.tab==='menu'?pMenu(t):S.tab==='shop'?pShop(t):S.tab==='money'?pMoney(t):pOverview(t);
   return `<header class="trip-head">
     <div class="nav"><a class="icon-btn" href="#" aria-label="回到行程列表">${ico('back')}</a><span class="grow"></span>
       ${member&&can()?`<button class="btn small ghost" data-act="invite">${ico('share')}邀請</button><button class="icon-btn" data-act="edit-trip" aria-label="編輯行程">${ico('edit')}</button>`:''}</div>
@@ -393,6 +393,53 @@ function pShop(t){
     ${s.length?(list.length?grouped(list,SHOP_CATS,'bought',x=>swipeRow(t,'shopping',x,checkRow(t,x,'shopping','bought','shop-form','buyer',x.qty?` <span class="by">× ${esc(x.qty)}</span>`:''))):`<div class="empty">這個篩選條件下沒有項目</div>`)
       :`<div class="empty">還沒有要買的東西。食材、飲料、冰塊、木炭都可以先列上來，分給負責的人。</div>`}
   </section></div>`;
+}
+/* ---------- menu ---------- */
+const SLOTS=['早餐','午餐','晚餐','點心','宵夜'];
+const lines=v=>String(v||'').split(/[\n,，、]+/).map(x=>x.trim()).filter(Boolean);
+// "牛小排 2盒" -> {name:'牛小排',qty:'2盒'}
+function parseIng(line){const m=line.match(/^(.*?)[\s×xX*]+([\d０-９.]+\s*\S*)$/);return m&&m[1].trim()?{name:m[1].trim(),qty:m[2].trim()}:{name:line,qty:''}}
+function pMenu(t){
+  const meals=S.sub.meals;if(!meals)return loading;
+  const days=tripDays(t),by={};
+  for(const m of meals)(by[m.date||'']=by[m.date||'']||[]).push(m);
+  const keys=[...(days.length?days:['']),...Object.keys(by).filter(k=>!days.includes(k)&&!(k===''&&!days.length)).sort()];
+  const shopNames=new Set((S.sub.shopping||[]).map(x=>x.name));
+  const card=m=>{const ing=(m.ingredients||[]);const inShop=ing.filter(i=>shopNames.has(i.name)).length;
+    return swipeRow(t,'meals',m,`<button class="meal" data-act="meal-form" data-id="${m.id}" ${canT(t)?'':'disabled'}>
+      <span class="meal-slot">${esc(m.slot||'一餐')}</span>
+      <span class="meal-body"><b>${(m.dishes||[]).map(esc).join('、')||'還沒決定吃什麼'}</b>
+      <small>${ing.length?`食材 ${ing.length} 項${inShop?` · ${inShop === ing.length?'都已在購物清單':`${inShop} 項在購物清單`}`:''}`:'還沒列食材'}</small></span>
+      <span class="side">${m.cook?who(m.cook):'<span class="by">誰煮？</span>'}</span></button>`)};
+  const block=k=>{const arr=(by[k]||[]).sort((a,b)=>SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot));const i=days.indexOf(k);
+    return `<section class="day"><div class="day-h"><b>${i>=0?`Day ${i+1}`:(k?'其他日期':'菜單')}</b><span>${k?fmtD(k):''}</span><span class="grow"></span>${canT(t)?`<button class="btn-text" data-act="meal-form" data-date="${k}">${ico('plus')}加一餐</button>`:''}</div>
+      ${arr.length?`<div class="list">${arr.map(card).join('')}</div>`:`<div class="empty" style="padding:12px">還沒排</div>`}</section>`};
+  return `<div class="panel">${meals.length?'':`<p class="seg-hint">營地三餐吃什麼？排好菜單、分配誰負責煮，食材可以一鍵加到購物清單。</p>`}${keys.map(block).join('')}</div>`;
+}
+function mealForm(t,item,date){
+  const isNew=!item;const days=tripDays(t);
+  item=item||{date:date||days[0]||'',slot:'晚餐',cook:S.uid,dishes:[],ingredients:[]};
+  const dateField=days.length?`<select id="f-date">${days.map((d,i)=>`<option value="${d}"${d===item.date?' selected':''}>Day ${i+1} · ${fmtD(d)}</option>`).join('')}${item.date&&!days.includes(item.date)?`<option value="${esc(item.date)}" selected>${fmtD(item.date)}</option>`:''}</select>`:inp('f-date',item.date,'','date');
+  sheet({title:isNew?'加一餐':'編輯這一餐',body:`
+    <div class="two">${fld('哪一天',dateField)}${fld('誰負責煮',personSel('f-cook',t,item.cook,'還沒決定'))}</div>
+    ${grp('哪一餐',chips('slot',SLOTS,[item.slot],true))}
+    ${fld('菜色',`<textarea id="f-dishes" style="min-height:70px" placeholder="一行一道，例如：&#10;烤肉&#10;玉米濃湯">${esc((item.dishes||[]).join('\n'))}</textarea>`)}
+    ${fld('食材',`<textarea id="f-ing" style="min-height:100px" placeholder="一行一樣，可以寫數量，例如：&#10;牛小排 2盒&#10;玉米 4根&#10;烤肉醬">${esc((item.ingredients||[]).map(i=>i.qty?i.name+' '+i.qty:i.name).join('\n'))}</textarea>`)}
+    <label class="check-row"><input type="checkbox" id="f-toshop"${isNew?' checked':''}><span>把食材加到購物清單<small class="fld-h" style="display:block">由負責煮的人採買，清單上已經有的不會重複加</small></span></label>`,
+    danger:isNew?null:{label:'刪除',fn:()=>W(()=>D(`trips/${t.id}/meals/${item.id}`).delete())},
+    onSubmit:async f=>{
+      const dishes=lines(val(f,'f-dishes')),ingredients=lines($('#f-ing').value).map(parseIng);
+      const slot=readChips(f,'slot')[0]||'晚餐';
+      if(!dishes.length&&!ingredients.length){toast('至少填一道菜或一樣食材');return false}
+      const data={date:val(f,'f-date'),slot,cook:val(f,'f-cook'),dishes,ingredients};
+      if(isNew)await W(()=>D(`trips/${t.id}/meals/${newId()}`).set({...data,createdAt:Date.now()}));
+      else await W(()=>D(`trips/${t.id}/meals/${item.id}`).update(data));
+      if($('#f-toshop').checked){
+        const have=new Set((S.sub.shopping||[]).map(x=>x.name));const add=ingredients.filter(i=>!have.has(i.name));
+        let k=0;for(const i of add)await W(()=>D(`trips/${t.id}/shopping/${newId()}${k++}`).set({name:i.name,qty:i.qty,cat:'食材',buyer:data.cook||'',bought:false,createdAt:Date.now()+k}));
+        toast(add.length?`已把 ${add.length} 樣食材加到購物清單`:'食材都已經在購物清單上了');
+      }
+    }});
 }
 function tripDays(t){if(!t.startDate)return[];const n=Math.min(nights(t),13);return Array.from({length:n+1},(_,i)=>addDays(t.startDate,i))}
 function pPlan(t){
@@ -985,6 +1032,7 @@ document.addEventListener('click',e=>{
       const on=!it[f];it[f]=on;it.doneBy=on?S.uid:'';render();
       W(()=>D(`trips/${t.id}/${col}/${id}`).update({[f]:on,doneBy:on?S.uid:''})).catch(()=>{it[f]=!on;render()});break}
     case'gear-form':if(needT())gearForm(t,id&&(S.sub.gear||[]).find(x=>x.id===id));break;
+    case'meal-form':if(needT())mealForm(t,id&&(S.sub.meals||[]).find(x=>x.id===id),el.dataset.date);break;
     case'shop-form':if(needT())shopForm(t,id&&(S.sub.shopping||[]).find(x=>x.id===id));break;
     case'exp-form':if(needT())expForm(t,id&&(S.sub.expenses||[]).find(x=>x.id===id));break;
     case'plan-form':if(needT())planForm(t,id&&(S.sub.schedule||[]).find(x=>x.id===id),el.dataset.date);break;
