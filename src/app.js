@@ -261,7 +261,7 @@ function vTrip(){
     <p class="meta"><span>${ico('cal')}${fmtRange(t)}${nights(t)?` · ${nights(t)} 晚`:''}</span>${where(t)?`<span>${ico('pin')}${esc(where(t))}</span>`:''}</p>
   </header>
   ${!member&&can()?`<div class="notice join"><span>你還沒加入這個行程，加入後才能一起勾選和記帳。</span><button class="btn small primary" data-act="join-this">加入行程</button></div>`:''}
-  <div class="tabs"><div class="in" role="tablist">${tabs.map(([k,l,n])=>`<button role="tab" aria-selected="${S.tab===k}" data-act="tab" data-tab="${k}">${l}${n!==undefined&&n!==''?`<span class="n">${n}</span>`:''}</button>`).join('')}</div></div>
+  <div class="tabs"><div class="in" role="tablist">${tabs.map(([k,l,n])=>`<button role="tab" aria-selected="${S.tab===k}" data-act="tab" data-tab="${k}">${l}</button>`).join('')}</div></div>
   ${body}`;
 }
 const canT=t=>can()&&isMember(t);
