@@ -408,20 +408,59 @@ function menuBlock(t){
   const days=tripDays(t),by={};
   for(const m of meals)(by[m.date||'']=by[m.date||'']||[]).push(m);
   const keys=[...days.filter(d=>by[d]),...Object.keys(by).filter(k=>!days.includes(k)).sort()];
-  const row=m=>`<button class="menu-row" data-act="meal-form" data-id="${m.id}" ${canT(t)?'':'disabled'}><span class="slot-pill">${esc(m.slot||'一餐')}</span><span class="menu-dish">${(m.dishes||[]).map(esc).join('、')||'<i>還沒決定吃什麼</i>'}</span>${m.cook?av(m.cook):''}</button>`;
-  const day=k=>{const i=days.indexOf(k);const arr=by[k].sort((a,b)=>SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot));
-    return `<div class="menu-day"><div class="menu-day-h"><b>${i>=0?`Day ${i+1}`:'其他'}</b><span>${k?fmtD(k):''}</span></div>${arr.map(row).join('')}</div>`};
-  return `<section class="block"><div class="block-head"><h3>菜單</h3><span class="hint">${meals.length?meals.length+' 餐':''}</span><span class="grow"></span>${canT(t)?`<button class="btn-text" data-act="meal-form">${ico('plus')}加一餐</button>`:''}</div>
-    ${meals.length?`<div class="card menu-card">${keys.map(day).join('')}</div>`:`<div class="card"><p class="notes" style="color:var(--ink-3)">還沒排菜單。加一餐，食材可以直接送到購物清單。</p></div>`}</section>`;
+  const edit=canT(t);
+  const row=m=>`<button class="mn-row" data-act="meal-form" data-id="${m.id}" ${edit?'':'disabled'}>
+      <span class="mn-slot">${esc(m.slot||'一餐')}</span>
+      <span class="mn-dish">${(m.dishes||[]).map(esc).join('<i>・</i>')||'<em>未定</em>'}</span>
+      <span class="mn-dots" aria-hidden="true"></span>
+      <span class="mn-cook">${m.cook?esc(nameOf(m.cook)):''}</span></button>`;
+  const day=k=>{const i=days.indexOf(k);const d=k?parseD(k):null;
+    const arr=by[k].sort((a,b)=>SLOTS.indexOf(a.slot)-SLOTS.indexOf(b.slot));
+    return `<div class="mn-day"><div class="mn-day-h"><span>${i>=0?`第${'一二三四五六七八九十'[i]||i+1}天`:'其他'}</span>${d?`<small>${d.getMonth()+1}.${d.getDate()} 週${'日一二三四五六'[d.getDay()]}</small>`:''}</div>${arr.map(row).join('')}</div>`};
+  return `<section class="block"><div class="menu-sheet">
+    <div class="mn-head"><small>MENU</small><span class="mn-rule"></span></div>
+    ${meals.length?keys.map(day).join(''):`<p class="mn-empty">還沒排菜單<br><span>大家想吃什麼，先寫上來吧</span></p>`}
+    ${edit?`<button class="mn-add" data-act="menu-edit">${ico('edit')}編輯菜單</button>`:''}
+  </div></section>`;
+}
+/* edit the whole menu at once: one row per day and meal */
+function menuEditor(t){
+  const days=tripDays(t),members=membersOf(t),meals=S.sub.meals||[];
+  const keys=days.length?days:[''];
+  const find=(d,sl)=>meals.find(m=>(m.date||'')===d&&m.slot===sl);
+  const extra=['點心','宵夜'];
+  const cookSel=(id,v)=>`<select class="me-cook" id="${id}"><option value="">誰煮</option>${members.map(k=>`<option value="${esc(k)}"${k===v?' selected':''}>${esc(nameOf(k))}</option>`).join('')}</select>`;
+  const row=(d,di,sl)=>{const m=find(d,sl),id=`me-${di}-${SLOTS.indexOf(sl)}`;
+    return `<div class="me-row${extra.includes(sl)&&!m?' me-extra':''}"${extra.includes(sl)&&!m?' hidden':''}><span class="me-slot">${sl}</span><input type="text" id="${id}" value="${esc(m?(m.dishes||[]).join('、'):'')}" placeholder="${sl==='早餐'?'例如：蛋餅、咖啡':sl==='晚餐'?'例如：烤肉、玉米濃湯':'吃什麼？'}">${members.length?cookSel(id+'-c',m?m.cook:''):''}</div>`};
+  sheet({title:'編輯菜單',submit:'儲存菜單',body:`<p class="fld-h" style="margin:0">每一格打菜名，多道菜用「、」隔開。留空就是這餐不排。</p>
+    ${keys.map((d,di)=>`<div class="me-day"><div class="me-day-h"><b>${d?`第${'一二三四五六七八九十'[di]||di+1}天`:'菜單'}</b>${d?`<span>${fmtD(d)}</span>`:''}</div>${SLOTS.map(sl=>row(d,di,sl)).join('')}</div>`).join('')}
+    <button type="button" class="btn-text" id="me-more">${ico('plus')}也排點心、宵夜</button>`,
+    onSubmit:async f=>{
+      let n=0;const jobs=[];
+      keys.forEach((d,di)=>SLOTS.forEach(sl=>{
+        const el=$(`#me-${di}-${SLOTS.indexOf(sl)}`);if(!el)return;
+        const dishes=String(el.value).split(/[、，,\n]+/).map(x=>x.trim()).filter(Boolean);
+        const c=$(`#me-${di}-${SLOTS.indexOf(sl)}-c`),cook=c?c.value:'';
+        const m=find(d,sl);
+        if(m&&!dishes.length){if(!(m.ingredients||[]).length)jobs.push(()=>D(`trips/${t.id}/meals/${m.id}`).delete());else jobs.push(()=>D(`trips/${t.id}/meals/${m.id}`).update({dishes:[],cook}))}
+        else if(m&&(dishes.join('、')!==(m.dishes||[]).join('、')||cook!==(m.cook||'')))jobs.push(()=>D(`trips/${t.id}/meals/${m.id}`).update({dishes,cook}));
+        else if(!m&&dishes.length)jobs.push(()=>D(`trips/${t.id}/meals/${newId()}${n++}`).set({date:d,slot:sl,dishes,cook,ingredients:[],createdAt:Date.now()+n}));
+      }));
+      for(const j of jobs)await W(j);
+      toast(jobs.length?'菜單已更新':'沒有變更');
+    }});
+  $('#me-more').addEventListener('click',e=>{document.querySelectorAll('.me-extra').forEach(r=>r.hidden=false);e.currentTarget.hidden=true});
+  if(!document.querySelector('.me-extra'))$('#me-more').hidden=true;
 }
 function mealForm(t,item,date){
   const isNew=!item;const days=tripDays(t),members=membersOf(t);
   item=item||{date:date||days[0]||'',slot:'晚餐',cook:S.uid};
   let dishes=[...(item.dishes||[])],ings=(item.ingredients||[]).map(x=>({...x}));
   const dayPick=days.length?chips('mday',days,[days.includes(item.date)?item.date:days[0]],true,'',days.map((d,i)=>`Day ${i+1}　${fmtD(d)}`)):inp('f-date',item.date,'','date');
-  const f=sheet({title:isNew?'加一餐':'編輯這一餐',body:`
-    ${grp('哪一天',dayPick)}
-    ${grp('哪一餐',chips('slot',SLOTS,[item.slot],true))}
+  const di=days.indexOf(item.date);
+  const label=`${di>=0?`第${'一二三四五六七八九十'[di]||di+1}天`:(item.date?fmtD(item.date):'')}${di>=0||item.date?'・':''}${item.slot||'一餐'}`;
+  const f=sheet({title:isNew?'加一餐':label,body:`
+    ${isNew?grp('哪一天',dayPick)+grp('哪一餐',chips('slot',SLOTS,[item.slot],true)):''}
     ${grp('吃什麼',`<div class="tagbox" id="dish-box"></div><div class="addrow"><input type="text" id="dish-in" placeholder="輸入一道菜，例如：烤肉" enterkeyhint="done"><button type="button" class="add-btn" id="dish-add" aria-label="加入這道菜">${ico('plus')}</button></div>`)}
     ${grp('要準備的食材',`<div class="ing-box" id="ing-box"></div><div class="addrow"><input type="text" id="ing-in" placeholder="食材，例如：牛小排" enterkeyhint="done"><input type="text" id="ing-qty" class="qty" placeholder="數量"><button type="button" class="add-btn" id="ing-add" aria-label="加入這樣食材">${ico('plus')}</button></div>`)}
     ${members.length?grp('誰負責煮',chips('cook',members,[item.cook],true,'',members.map(k=>nameOf(k)+(k===S.uid?'（我）':'')))):''}
@@ -430,7 +469,7 @@ function mealForm(t,item,date){
     onSubmit:async f=>{
       addDish();addIng();
       if(!dishes.length&&!ings.length){toast('至少加一道菜或一樣食材');return false}
-      const data={date:days.length?(readChips(f,'mday')[0]||days[0]):val(f,'f-date'),slot:readChips(f,'slot')[0]||'晚餐',cook:readChips(f,'cook')[0]||'',dishes,ingredients:ings};
+      const data={date:!isNew?(item.date||''):days.length?(readChips(f,'mday')[0]||days[0]):val(f,'f-date'),slot:!isNew?(item.slot||'晚餐'):(readChips(f,'slot')[0]||'晚餐'),cook:readChips(f,'cook')[0]||'',dishes,ingredients:ings};
       if(isNew)await W(()=>D(`trips/${t.id}/meals/${newId()}`).set({...data,createdAt:Date.now()}));
       else await W(()=>D(`trips/${t.id}/meals/${item.id}`).update(data));
       if($('#f-toshop').checked){
@@ -1054,6 +1093,7 @@ document.addEventListener('click',e=>{
       W(()=>D(`trips/${t.id}/${col}/${id}`).update({[f]:on,doneBy:on?S.uid:''})).catch(()=>{it[f]=!on;render()});break}
     case'gear-form':if(needT())gearForm(t,id&&(S.sub.gear||[]).find(x=>x.id===id));break;
     case'reassign':{if(!needT())break;const it=(S.sub[el.dataset.col]||[]).find(x=>x.id===id);if(it)reassignSheet(t,el.dataset.col,el.dataset.f,it);break}
+    case'menu-edit':if(needT())menuEditor(t);break;
     case'meal-form':if(needT())mealForm(t,id&&(S.sub.meals||[]).find(x=>x.id===id),el.dataset.date);break;
     case'shop-form':if(needT())shopForm(t,id&&(S.sub.shopping||[]).find(x=>x.id===id));break;
     case'exp-form':if(needT())expForm(t,id&&(S.sub.expenses||[]).find(x=>x.id===id));break;
